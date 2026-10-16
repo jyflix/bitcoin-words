@@ -1,4 +1,4 @@
-import { validateMnemonic } from "@scure/bip39";
+import { generateMnemonic, validateMnemonic } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { electrumSeedType, type ElectrumSeedType } from "./electrum";
 
@@ -138,6 +138,11 @@ export function analyzePhrase(input: string): PhraseAnalysis {
   else status = "bad-checksum";
 
   return { ...base, bip39, electrum, status };
+}
+
+/** A new random phrase from the browser's cryptographically secure random generator. */
+export function randomPhrase(words: 12 | 24 = 12): string {
+  return generateMnemonic(wordlist, words === 24 ? 256 : 128);
 }
 
 /** Replaces unknown words with their suggestions, when every one has one. */

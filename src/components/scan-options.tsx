@@ -50,7 +50,7 @@ export function ScanOptions({
         aria-controls={`${id}-panel`}
         className="flex w-full items-center justify-between gap-3 rounded-2xl px-4 py-3 text-left transition hover:bg-white/[0.02]"
       >
-        <span className="flex items-center gap-2 text-sm font-medium text-zinc-200">
+        <span className="flex shrink-0 items-center gap-2 text-sm font-medium whitespace-nowrap text-zinc-200">
           <SlidersHorizontal className="size-4 text-zinc-400" aria-hidden="true" />
           Advanced options
         </span>

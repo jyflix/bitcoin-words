@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { formatAmount, formatUnits } from "./format";
-import { analyzePhrase, applySuggestions, parseWords, suggestWord } from "./mnemonic";
+import { analyzePhrase, applySuggestions, parseWords, randomPhrase, suggestWord } from "./mnemonic";
 
 const ABANDON_12 = `${"abandon ".repeat(11)}about`;
 const ABANDON_24 = `${"abandon ".repeat(23)}art`;
@@ -58,6 +58,18 @@ describe("analyzePhrase", () => {
   it("recognises Electrum seeds", () => {
     const result = analyzePhrase("bitter grass shiver impose acquire brush forget axis eager alone wine silver");
     expect(result).toMatchObject({ status: "valid", bip39: false, electrum: "segwit" });
+  });
+});
+
+describe("randomPhrase", () => {
+  it.each([12, 24] as const)("creates a valid %i-word phrase", (words) => {
+    const phrase = randomPhrase(words);
+    expect(phrase.split(" ")).toHaveLength(words);
+    expect(analyzePhrase(phrase)).toMatchObject({ status: "valid", bip39: true });
+  });
+
+  it("does not repeat", () => {
+    expect(new Set(Array.from({ length: 50 }, () => randomPhrase())).size).toBe(50);
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { ArrowRight, Loader2, Lock } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
-import { analyzePhrase } from "@/lib/mnemonic";
+import { analyzePhrase, randomPhrase } from "@/lib/mnemonic";
 import type { ChainId } from "@/lib/types";
 import { PhraseInput } from "./phrase-input";
 import { Results } from "./results";
@@ -89,6 +89,7 @@ export function SeedChecker() {
           onClear={clearAll}
           onSubmit={scan}
           onDemo={() => updatePhrase(DEMO_PHRASE)}
+          onLucky={(words) => updatePhrase(randomPhrase(words))}
         />
 
         <div className="mt-5">

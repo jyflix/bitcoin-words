@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   ClipboardPaste,
+  Dices,
   Eye,
   EyeOff,
   Info,
@@ -23,6 +24,7 @@ interface PhraseInputProps {
   onClear: () => void;
   onSubmit: () => void;
   onDemo: () => void;
+  onLucky: (words: 12 | 24) => void;
 }
 
 /** Attributes that keep spellcheckers, autofill and password managers out of the phrase. */
@@ -49,6 +51,7 @@ export function PhraseInput({
   onClear,
   onSubmit,
   onDemo,
+  onLucky,
 }: PhraseInputProps) {
   const id = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -130,18 +133,23 @@ export function PhraseInput({
         ) : null}
       </div>
 
-      <div id={`${id}-status`} className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2" aria-live="polite">
-        <PhraseStatusLine analysis={analysis} onFix={() => onChange(applySuggestions(analysis) ?? value)} />
-        {analysis.status === "empty" ? (
-          <button
-            type="button"
-            onClick={onDemo}
-            className="inline-flex items-center gap-1.5 text-xs text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition hover:text-zinc-200 hover:decoration-zinc-400"
-          >
-            <Sparkles className="size-3.5" />
-            Try the public demo phrase
-          </button>
-        ) : null}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2.5">
+        <div id={`${id}-status`} aria-live="polite" className="min-w-0">
+          <PhraseStatusLine analysis={analysis} onFix={() => onChange(applySuggestions(analysis) ?? value)} />
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {analysis.status === "empty" ? (
+            <button
+              type="button"
+              onClick={onDemo}
+              className="inline-flex items-center gap-1.5 text-xs text-zinc-400 underline decoration-zinc-700 underline-offset-4 transition hover:text-zinc-200 hover:decoration-zinc-400"
+            >
+              <Sparkles className="size-3.5" />
+              Try the public demo phrase
+            </button>
+          ) : null}
+          <LuckyButton onGenerate={onLucky} />
+        </div>
       </div>
       {pasteFailed ? (
         <p className="mt-2 text-xs text-zinc-500">
@@ -172,6 +180,44 @@ export function PhraseInput({
           })}
         </ol>
       ) : null}
+    </div>
+  );
+}
+
+function LuckyButton({ onGenerate }: { onGenerate: (words: 12 | 24) => void }) {
+  const [words, setWords] = useState<12 | 24>(12);
+  return (
+    <div className="inline-flex items-center rounded-xl border border-white/10 bg-white/[0.03] p-0.5">
+      <button
+        type="button"
+        onClick={() => onGenerate(words)}
+        title="Fill in a random valid phrase — a brand-new wallet, almost certainly empty"
+        className="group inline-flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-medium text-zinc-200 transition hover:bg-white/[0.08] hover:text-white"
+      >
+        <Dices
+          className="size-3.5 text-zinc-400 transition-transform duration-300 group-hover:text-white group-active:rotate-180"
+          aria-hidden="true"
+        />
+        I’m feeling lucky
+      </button>
+      <span aria-hidden="true" className="mx-0.5 h-4 w-px bg-white/10" />
+      <div role="radiogroup" aria-label="Random phrase length" className="flex">
+        {([12, 24] as const).map((n) => (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={words === n}
+            aria-label={`${n} words`}
+            onClick={() => setWords(n)}
+            className={`h-7 rounded-lg px-2 text-[11px] font-medium tabular-nums transition ${
+              words === n ? "bg-white/10 text-white" : "text-zinc-500 hover:text-zinc-200"
+            }`}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
