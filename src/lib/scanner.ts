@@ -2,8 +2,8 @@ import { fetchBtcAddress, type BtcAddressInfo } from "@/lib/chains/bitcoin";
 import { fetchEthBalances, type EthAddressInfo } from "@/lib/chains/ethereum";
 import { fetchPrices } from "@/lib/chains/prices";
 import { fetchSolBalances, type SolAddressInfo } from "@/lib/chains/solana";
+import type { BrowserEndpoints } from "@/config/providers";
 import { deriveMaterial, type BtcAccount, type DeriveInput, type FixedGroup } from "@/lib/derive";
-import { ENDPOINTS } from "@/lib/endpoints";
 import { ProviderPool, abortReason, chunk, createLimiter, errorMessage } from "@/lib/net";
 import {
   CHAIN_IDS,
@@ -27,11 +27,12 @@ export interface BalanceClients {
   prices(signal: AbortSignal): Promise<Prices>;
 }
 
-export function createClients(): BalanceClients {
+/** Clients for the given endpoints: public APIs, or this app's proxy routes. */
+export function createClients(endpoints: BrowserEndpoints): BalanceClients {
   // Bitcoin needs one request per address, so spread them over every Esplora host.
-  const btc = new ProviderPool(ENDPOINTS.btc, "round-robin");
-  const eth = new ProviderPool(ENDPOINTS.eth);
-  const sol = new ProviderPool(ENDPOINTS.sol);
+  const btc = new ProviderPool(endpoints.btc, "round-robin");
+  const eth = new ProviderPool(endpoints.eth);
+  const sol = new ProviderPool(endpoints.sol);
   return {
     btc: (address, signal) => fetchBtcAddress(btc, address, signal),
     eth: (addresses, signal) => fetchEthBalances(eth, addresses, signal),
@@ -43,7 +44,7 @@ export function createClients(): BalanceClients {
 export interface ScanOptions {
   signal: AbortSignal;
   onUpdate: (snapshot: ScanSnapshot) => void;
-  clients?: BalanceClients;
+  clients: BalanceClients;
   /** Minimum delay between progress updates, in ms. */
   throttleMs?: number;
 }
@@ -309,7 +310,7 @@ class ScanSession {
  * Resolves with the final snapshot; never rejects.
  */
 export async function runScan(params: DeriveInput, options: ScanOptions): Promise<ScanSnapshot> {
-  const { signal, onUpdate, clients = createClients(), throttleMs = 80 } = options;
+  const { signal, onUpdate, clients, throttleMs = 80 } = options;
   const session = new ScanSession(onUpdate, throttleMs);
 
   for (const chain of CHAIN_IDS) {

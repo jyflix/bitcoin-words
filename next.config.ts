@@ -1,18 +1,18 @@
 import type { NextConfig } from "next";
-import { connectOrigins } from "./src/lib/endpoints";
+import { connectOrigins } from "./src/config/providers";
 
 const isDev = process.env.NODE_ENV === "development";
 
 // The recovery phrase is processed entirely in the browser. This policy makes
-// that a hard guarantee: the page may only fetch() from itself and the public
-// balance APIs listed in src/lib/endpoints.ts.
+// that a hard guarantee: the page may only fetch() from itself (the /api proxy
+// routes) and the public endpoints it actually uses — see src/config/providers.ts.
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  `connect-src 'self' ${connectOrigins().join(" ")}${isDev ? " ws: wss:" : ""}`,
+  `connect-src 'self' ${connectOrigins(process.env).join(" ")}${isDev ? " ws: wss:" : ""}`,
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'none'",

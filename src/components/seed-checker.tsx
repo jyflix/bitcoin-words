@@ -2,6 +2,7 @@
 
 import { ArrowRight, Loader2, Lock } from "lucide-react";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
+import type { BrowserEndpoints } from "@/config/providers";
 import { analyzePhrase, randomPhrase } from "@/lib/mnemonic";
 import type { ChainId } from "@/lib/types";
 import { PhraseInput } from "./phrase-input";
@@ -16,13 +17,14 @@ const NO_WORDS: readonly string[] = [];
 const DEMO_PHRASE =
   "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
 
-export function SeedChecker() {
+/** `endpoints` comes from the server: public APIs, or this app's proxy for chains with private providers. */
+export function SeedChecker({ endpoints }: { endpoints: BrowserEndpoints }) {
   const [phrase, setPhrase] = useState("");
   const [passphrase, setPassphrase] = useState("");
   const [count, setCount] = useState(10);
   const [chains, setChains] = useState<Record<ChainId, boolean>>({ btc: true, eth: true, sol: true });
   const [concealed, setConcealed] = useState(false);
-  const { snapshot, start, stop, reset } = useScanner();
+  const { snapshot, start, stop, reset } = useScanner(endpoints);
 
   const deferredPhrase = useDeferredValue(phrase);
   const analysis = useMemo(() => analyzePhrase(deferredPhrase), [deferredPhrase]);

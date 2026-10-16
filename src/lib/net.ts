@@ -1,8 +1,6 @@
+/** Carries only the status — never the URL, which may contain an API key. */
 export class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    readonly url: string,
-  ) {
+  constructor(readonly status: number) {
     super(status === 429 ? "Rate limited by provider" : `Provider responded with HTTP ${status}`);
     this.name = "HttpError";
   }
@@ -46,6 +44,7 @@ export function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 interface RequestOptions {
   method?: "GET" | "POST";
   body?: unknown;
+  headers?: Record<string, string>;
   signal?: AbortSignal;
   timeoutMs?: number;
 }
@@ -53,7 +52,7 @@ interface RequestOptions {
 /** fetch() + JSON with a timeout, no cookies and no referrer. */
 export async function requestJson<T>(
   url: string,
-  { method = "GET", body, signal, timeoutMs = 10_000 }: RequestOptions = {},
+  { method = "GET", body, headers, signal, timeoutMs = 10_000 }: RequestOptions = {},
 ): Promise<T> {
   const controller = new AbortController();
   const timer = setTimeout(
@@ -68,13 +67,13 @@ export async function requestJson<T>(
     const response = await fetch(url, {
       method,
       body: body === undefined ? undefined : JSON.stringify(body),
-      headers: body === undefined ? undefined : { "content-type": "application/json" },
+      headers: { ...(body === undefined ? {} : { "content-type": "application/json" }), ...headers },
       signal: controller.signal,
       cache: "no-store",
       credentials: "omit",
       referrerPolicy: "no-referrer",
     });
-    if (!response.ok) throw new HttpError(response.status, url);
+    if (!response.ok) throw new HttpError(response.status);
     return (await response.json()) as T;
   } finally {
     clearTimeout(timer);
@@ -110,20 +109,20 @@ const COOLDOWN_MS = 30_000;
  * "failover" sticks with the last healthy endpoint; "round-robin" spreads
  * consecutive tasks over all endpoints to stay under per-provider rate limits.
  */
-export class ProviderPool {
+export class ProviderPool<E = string> {
   private preferred = 0;
   private cursor = 0;
   private readonly cooldownUntil: number[];
 
   constructor(
-    readonly urls: readonly string[],
+    readonly endpoints: readonly E[],
     private readonly strategy: "failover" | "round-robin" = "failover",
   ) {
-    this.cooldownUntil = urls.map(() => 0);
+    this.cooldownUntil = endpoints.map(() => 0);
   }
 
   private order(): number[] {
-    const n = this.urls.length;
+    const n = this.endpoints.length;
     const start = this.strategy === "round-robin" ? this.cursor++ % n : this.preferred;
     const order = Array.from({ length: n }, (_, i) => (start + i) % n);
     const now = Date.now();
@@ -133,13 +132,13 @@ export class ProviderPool {
     ];
   }
 
-  async run<T>(task: (url: string) => Promise<T>, signal?: AbortSignal): Promise<T> {
+  async run<T>(task: (endpoint: E) => Promise<T>, signal?: AbortSignal): Promise<T> {
     let lastError: unknown = new Error("No endpoints configured");
     for (const index of this.order()) {
       for (let attempt = 0; attempt < 2; attempt++) {
         if (signal?.aborted) throw abortReason(signal);
         try {
-          const result = await task(this.urls[index]);
+          const result = await task(this.endpoints[index]);
           this.preferred = index;
           this.cooldownUntil[index] = 0;
           return result;

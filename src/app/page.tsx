@@ -2,8 +2,28 @@ import { Cpu, EyeOff, Network, ShieldAlert, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { ChainBadge, Logo } from "@/components/chain-icons";
 import { SeedChecker } from "@/components/seed-checker";
+import { browserEndpoints, providerNames, type Chain } from "@/config/providers";
+
+const CHAIN_NAMES: Record<Chain, string> = { btc: "Bitcoin", eth: "Ethereum", sol: "Solana" };
+const PUBLIC_PROVIDERS: Record<Chain, string> = {
+  btc: "mempool.space or Blockstream",
+  eth: "PublicNode, LlamaRPC or 1RPC",
+  sol: "PublicNode or Solana’s public RPC",
+};
 
 export default function Home() {
+  // Read at build time; only proxy routes or public URLs reach the browser, never keys.
+  const endpoints = browserEndpoints(process.env);
+  const names = providerNames(process.env);
+  const chains = Object.keys(CHAIN_NAMES) as Chain[];
+  const either = new Intl.ListFormat("en", { type: "disjunction" });
+  const routes = chains.map((chain) =>
+    names[chain].length > 0
+      ? `${CHAIN_NAMES[chain]} via this site’s server to ${either.format(names[chain])}`
+      : `${CHAIN_NAMES[chain]} directly to ${PUBLIC_PROVIDERS[chain]}`,
+  );
+  const usesPrivateProviders = chains.some((chain) => names[chain].length > 0);
+
   return (
     <div className="relative isolate flex min-h-screen flex-col overflow-x-clip">
       <Backdrop />
@@ -56,7 +76,7 @@ export default function Home() {
           </ul>
         </section>
 
-        <SeedChecker />
+        <SeedChecker endpoints={endpoints} />
 
         <section className="mt-16 grid gap-3 sm:grid-cols-3" aria-label="How it works">
           <Feature icon={<Cpu className="size-4" />} title="Derived locally">
@@ -64,8 +84,8 @@ export default function Home() {
             addresses are kept — the seed and private keys are wiped right after.
           </Feature>
           <Feature icon={<Network className="size-4" />} title="Read-only lookups">
-            Only public addresses go to public explorers and RPC nodes. A strict Content-Security-Policy blocks
-            every other destination.
+            Only public addresses are looked up — never your phrase or keys. A strict Content-Security-Policy
+            blocks every destination the app doesn’t use.
           </Feature>
           <Feature icon={<EyeOff className="size-4" />} title="Nothing stored">
             No accounts, cookies, analytics or storage. Private keys are never displayed. Close the tab and
@@ -100,10 +120,9 @@ export default function Home() {
               so you can paste it into an explorer for Base, Arbitrum or BNB Chain.
             </Faq>
             <Faq q="What exactly is sent over the network?">
-              Only derived public addresses, to mempool.space or Blockstream (Bitcoin), PublicNode, LlamaRPC or
-              1RPC (Ethereum) and PublicNode or Solana’s public RPC (Solana), plus a price request to CoinGecko or
-              Coinbase. These providers can see which addresses were looked up together; self-hosters can point
-              the app at their own nodes with environment variables.
+              Only derived public addresses — {routes.join("; ")}.
+              {usesPrivateProviders ? " API keys are added on the server and never reach your browser." : ""} Prices
+              come from CoinGecko or Coinbase. Providers can see which addresses were looked up together.
             </Faq>
             <Faq q="Can this move my funds?">
               No. SeedScope is read-only: it never shows private keys, signs anything or connects to a wallet.
@@ -118,7 +137,7 @@ export default function Home() {
             <Logo className="size-4" />
             SeedScope · read-only · open source
           </span>
-          <span>Balances from public explorers &amp; RPC nodes · prices from CoinGecko</span>
+          <span>Balances from blockchain explorers &amp; RPC providers · prices from CoinGecko</span>
         </div>
       </footer>
     </div>

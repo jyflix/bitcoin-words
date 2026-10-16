@@ -11,7 +11,7 @@ import {
   Square,
 } from "lucide-react";
 import { memo, useMemo, useState } from "react";
-import { EXPLORERS } from "@/lib/endpoints";
+import { EXPLORERS } from "@/lib/explorers";
 import { formatAmount, formatPrice, formatUsd, shortenAddress } from "@/lib/format";
 import { chainTotals, isActive, isNotable, sumEntries, type Totals } from "@/lib/totals";
 import {

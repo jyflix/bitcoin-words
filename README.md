@@ -28,18 +28,20 @@ recovery phrase never leaves the device.
   (JSON-RPC batches for Ethereum, `getMultipleAccounts` for Solana) and run in parallel.
 - **Resilient** — every network has fallback providers with retries, cooldowns for failing hosts and
   round-robin load spreading for Bitcoin; failures are reported per path instead of silently showing zero.
+- **Private RPC providers** — plug in Alchemy, Infura, Helius, QuickNode, your own node and more with
+  environment variables; API keys stay on the server.
 
 ## Security model
 
 - The phrase and passphrase are processed only in the browser. Right after derivation the seed and private keys
   are wiped from memory and only public keys (xpubs) and addresses are kept. Private keys are never displayed.
-- Only **public addresses** are sent over the network, to the providers in
-  [`src/lib/endpoints.ts`](src/lib/endpoints.ts). A strict Content-Security-Policy (built from that same list in
-  [`next.config.ts`](next.config.ts)) makes the browser refuse to send data anywhere else.
-- No cookies, storage, analytics or server-side code. The input opts out of spellcheck, autofill, Grammarly
-  and password managers. Requests are sent without credentials or referrer.
-- Providers can still see which addresses were looked up together (and your IP). Point the app at your own
-  nodes (below) if that matters to you.
+- Only **public addresses** are sent over the network — to public endpoints, or to this app's own `/api` routes
+  for chains with a [private provider](#private-rpc-providers). A strict Content-Security-Policy built from
+  [`src/config/providers.ts`](src/config/providers.ts) makes the browser refuse to send data anywhere else.
+- No cookies, storage or analytics. The input opts out of spellcheck, autofill, Grammarly and password managers.
+  Requests are sent without credentials or referrer.
+- Providers can still see which addresses were looked up together (and, for public endpoints, your IP). Use
+  private providers or your own nodes if that matters to you.
 
 > [!WARNING]
 > Anyone with a recovery phrase can take the funds. Only enter phrases into a copy of this app you control —
@@ -65,30 +67,51 @@ npm start
 Click **“Try the public demo phrase”** to see it work with the well-known BIP39 test vector
 (`abandon … about`) — a public wallet that anyone can access, so never send funds to it.
 
-## Configuration
+## Private RPC providers
 
-All endpoints are optional overrides — comma-separated lists, tried in order (Bitcoin requests are spread
-round-robin). They are added to the CSP automatically; rebuild after changing them. See
-[`.env.example`](.env.example).
+Nothing is required: without configuration every lookup goes from the browser to free public endpoints
+(mempool.space / Blockstream, PublicNode / LlamaRPC / 1RPC, PublicNode / Solana public RPC).
 
-| Variable              | Default                                                     |
-| --------------------- | ----------------------------------------------------------- |
-| `NEXT_PUBLIC_BTC_API` | `https://mempool.space/api`, `https://blockstream.info/api` (Esplora API) |
-| `NEXT_PUBLIC_ETH_RPC` | PublicNode, LlamaRPC, 1RPC                                  |
-| `NEXT_PUBLIC_SOL_RPC` | PublicNode, `api.mainnet-beta.solana.com`                   |
+To use your own providers, copy [`.env.example`](.env.example) to `.env.local` and set any of:
 
-`NEXT_PUBLIC_*` values are visible in the browser — use domain-restricted API keys (e.g. Alchemy, Helius).
+| Variable                | Chain    | Value                                                                       |
+| ----------------------- | -------- | --------------------------------------------------------------------------- |
+| `ALCHEMY_API_KEY`       | ETH, SOL | Alchemy app API key                                                         |
+| `INFURA_API_KEY`        | ETH      | Infura API key                                                              |
+| `HELIUS_API_KEY`        | SOL      | Helius API key                                                              |
+| `ETH_RPC_URLS`          | ETH      | Other JSON-RPC URLs (QuickNode, Chainstack, Ankr, own node), comma-separated |
+| `SOL_RPC_URLS`          | SOL      | Other JSON-RPC URLs (QuickNode, Triton, own node), comma-separated           |
+| `BTC_ESPLORA_URLS`      | BTC      | Esplora API base URLs, e.g. your own mempool on Umbrel / Start9              |
+| `BTC_BLOCKBOOK_URLS`    | BTC      | Blockbook API base URLs ending in `/api/v2` (NOWNodes, GetBlock, own Blockbook) |
+| `BTC_BLOCKBOOK_API_KEY` | BTC      | Optional, sent as the `api-key` header                                      |
+| `PUBLIC_FALLBACK`       | all      | `false` to never fall back to public endpoints (default `true`)            |
+| `API_RATE_LIMIT`        | all      | Requests per minute per IP for the `/api` routes (default `600`, `0` = off) |
+
+How it works:
+
+- For each chain with a private provider, the browser calls this app's route (`/api/rpc/eth`, `/api/rpc/sol`,
+  `/api/btc/address/:address`) instead of public endpoints. The route adds the key on the server and forwards
+  the request, trying providers in order, then public endpoints as a fallback.
+- Keys never reach the browser: they are read only on the server (don't prefix them with `NEXT_PUBLIC_`).
+- The routes forward only the exact lookups the app makes — balance, nonce and USDT/USDC `balanceOf` on
+  Ethereum, `getMultipleAccounts` on Solana, address stats on Bitcoin — rebuilt from validated input, so nobody
+  can spend your quota on other calls. They also reject cross-site browser requests and rate-limit per IP.
+- Provider URL templates, public defaults and env var names are in
+  [`src/config/providers.ts`](src/config/providers.ts) — add a provider there.
+
+Env vars are read when the app starts or is built: restart `npm run dev` or rebuild after changing them.
 Prices come from CoinGecko with Coinbase as fallback; stablecoins are valued at $1.
 
 ## Deploying
 
-The app is fully static, so any Next.js host works. On Vercel: import the repository and deploy — no settings
-needed. Security headers are set in `next.config.ts`.
+Any Next.js host works. The page itself is static; the `/api` routes run as server functions and are only
+used when private providers are configured. On Vercel: import the repository, add your keys under
+**Settings → Environment Variables**, and deploy. Security headers are set in `next.config.ts`.
 
 ## Development
 
 ```bash
-npm test          # vitest: derivation vectors, parsing, scanner logic, network fallbacks
+npm test          # vitest: derivation vectors, parsing, scanner logic, network fallbacks, proxy rules
 npm run lint
 npm run typecheck
 ```
@@ -99,15 +122,20 @@ Derivation tests use reference vectors cross-checked against bitcoinjs-lib, ethe
 ```
 src/
   app/                 page, layout, global styles
+    api/               proxy routes for private providers (eth, sol, btc)
   components/          UI (client components) and icons
+  config/
+    providers.ts       provider constants: env vars, URL templates, public endpoints, CSP origins
   lib/
-    mnemonic.ts        parsing, validation, typo suggestions
+    mnemonic.ts        parsing, validation, typo suggestions, random phrases
     electrum.ts        Electrum seed detection
+    wordlist.ts        BIP39 word list search
     derive/            BTC / ETH / SOL key derivation (public material only)
     chains/            balance clients: Esplora, Ethereum JSON-RPC, Solana RPC, prices
     scanner.ts         orchestration: gap-limit scanning, account discovery, progress updates
     net.ts             fetch with timeouts, retries, provider failover, batching
-    endpoints.ts       provider lists (also feeds the CSP)
+    proxy/             request validation, upstream forwarding, rate limiting for the /api routes
+    server/            server-only: provider pools built from env vars
 ```
 
 ## Limitations

@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { BrowserEndpoints } from "@/config/providers";
 import type { DeriveInput } from "@/lib/derive";
 import type { ScanSnapshot } from "@/lib/types";
 
 /** Runs balance scans; the crypto + network code is loaded on first use. */
-export function useScanner() {
+export function useScanner(endpoints: BrowserEndpoints) {
   const [snapshot, setSnapshot] = useState<ScanSnapshot | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -23,9 +24,10 @@ export function useScanner() {
     });
 
     try {
-      const { runScan } = await import("@/lib/scanner");
+      const { createClients, runScan } = await import("@/lib/scanner");
       if (controller.signal.aborted) return;
       await runScan(params, {
+        clients: createClients(endpoints),
         signal: controller.signal,
         onUpdate: (next) => {
           if (controllerRef.current === controller) setSnapshot(next);
@@ -39,7 +41,7 @@ export function useScanner() {
         error: error instanceof Error ? error.message : "Failed to load the scanner",
       }));
     }
-  }, []);
+  }, [endpoints]);
 
   const stop = useCallback(() => controllerRef.current?.abort(), []);
 

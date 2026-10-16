@@ -1,4 +1,4 @@
-import { PRICE_ENDPOINTS } from "@/lib/endpoints";
+import { PRICE_ENDPOINTS } from "@/config/providers";
 import { requestJson } from "@/lib/net";
 import type { Prices } from "@/lib/types";
 
