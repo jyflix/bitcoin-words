@@ -20,6 +20,8 @@ recovery phrase never leaves the device.
   | Solana   | `m/44'/501'/i'/0'` (Phantom, Solflare, Backpack), `m/44'/501'/i'` (Ledger, Trust Wallet), Solana CLI (no path) |
 - **Balances** — BTC (incl. unconfirmed), ETH + USDT + USDC, SOL + USDC + USDT, valued in USD.
 - **Optional BIP39 passphrase** (“25th word”) and adjustable scan depth.
+- **BIP39 word list** — all 2,048 words, searchable by prefix or by number (1–2048), with A–Z jump links,
+  copy, and the words of your phrase highlighted.
 - **Fast** — the page is statically prerendered; crypto code loads on demand; lookups are batched
   (JSON-RPC batches for Ethereum, `getMultipleAccounts` for Solana) and run in parallel.
 - **Resilient** — every network has fallback providers with retries, cooldowns for failing hosts and

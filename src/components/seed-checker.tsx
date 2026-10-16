@@ -8,6 +8,9 @@ import { PhraseInput } from "./phrase-input";
 import { Results } from "./results";
 import { ScanOptions } from "./scan-options";
 import { useScanner } from "./use-scanner";
+import { WordList } from "./word-list";
+
+const NO_WORDS: readonly string[] = [];
 
 /** The public BIP39 test vector — a well-known, watched wallet. Never fund it. */
 const DEMO_PHRASE =
@@ -129,6 +132,9 @@ export function SeedChecker() {
       </form>
 
       {snapshot ? <Results snapshot={snapshot} onRescan={scan} onStop={stop} /> : null}
+
+      {/* Highlights stay off while the phrase is hidden. */}
+      <WordList phraseWords={concealed ? NO_WORDS : analysis.words} />
     </>
   );
 }
